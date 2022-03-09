@@ -1,23 +1,12 @@
-# Use the official maven/Java 8 image to create a build artifact.
-# https://hub.docker.com/_/maven
-FROM maven:3.5-jdk-8-alpine as builder
-
-# Copy local code to the container image.
+FROM maven:3.6.3-jdk-11-slim@sha256:68ce1cd457891f48d1e137c7d6a4493f60843e84c9e2634e3df1d3d5b381d36c AS build
+RUN mkdir /project
+COPY . /project
+WORKDIR /project
+RUN mvn clean package -DskipTests
+ 
+ 
+FROM adoptopenjdk/openjdk11:jre-11.0.9.1_1-alpine@sha256:b6ab039066382d39cfc843914ef1fc624aa60e2a16ede433509ccadd6d995b1f
+RUN mkdir /app
+COPY --from=build /project/target/cotizador.jar /app/cotizador.jar
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-
-# Build a release artifact.
-RUN mvn package -DskipTests
-
-# Use AdoptOpenJDK for base image.
-# It's important to use OpenJDK 8u191 or above that has container support enabled.
-# https://hub.docker.com/r/adoptopenjdk/openjdk8
-# https://docs.docker.com/develop/develop-images/multistage-build/#use-multi-stage-builds
-FROM adoptopenjdk/openjdk11:latest
-
-# Copy the jar to the production image from the builder stage.
-COPY --from=builder /app/target/cotizador-*.jar /cotizador.jar
-
-# Run the web service on container startup.
-CMD ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/cotizador.jar"]
+CMD "java" "-jar" "cotizador.jar"
